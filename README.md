@@ -9,6 +9,7 @@ Deploys all foundational Azure resources required before installing Nerdio Manag
 | `main.bicep` | Resource Group × 2（共有インフラ用・Nerdio Manager アプリ用） |
 | `modules/network.bicep` | VNet、サブネット × 3、NSG × 3 |
 | `modules/entra-ds.bicep` | Entra Domain Services managed domain |
+| `modules/vnet-dns.bicep` | VNet カスタム DNS 更新（AADDS DC IP を自動設定） |
 | `modules/azure-files.bicep` | Storage Account, File Service, SMB Share, Private Endpoint, Private DNS Zone |
 
 ## Network layout
@@ -72,25 +73,15 @@ az deployment sub what-if \
 
 ### Entra Domain Services
 1. **Enable password hash sync** – In Entra ID (Azure AD), enable SSPR or prompt users to change their password so Kerberos/NTLM hashes are synchronised to AADDS. Cloud-only users must reset their password once.
-2. **DNS update** – After AADDS provisions, update the VNet DNS servers to the AADDS domain controller IPs shown in the portal (or from the deployment output `domainControllerIpAddresses`).
-3. **LDAPS (optional)** – If `enableLdaps = true`, upload a valid PFX certificate via the portal after deployment.
-
-### Azure Files – domain join
-Run the domain-join script on a domain-joined VM to enable Kerberos authentication for the file share:
-```powershell
-# On a domain-joined VM in the AADDS domain
-$storageAccountName = "<output: storageAccountName>"
-$resourceGroupName  = "<output: resourceGroupName>"
-$storageKey         = (Get-AzStorageAccountKey -ResourceGroupName $resourceGroupName `
-                         -Name $storageAccountName)[0].Value
-
-# Join the storage account to the AADDS domain
-Join-AzStorageAccountForAuth `
-  -ResourceGroupName $resourceGroupName `
-  -Name $storageAccountName `
-  -DomainAccountType 'ComputerAccount' `
-  -OrganizationalUnitDistinguishedName 'OU=AADDC Computers,DC=aadds,DC=contoso,DC=local'
-```
+2. **DNS update** – `modules/vnet-dns.bicep` が AADDS プロビジョニング完了後に自動的に VNet の DNS サーバーを DC の IP に更新します。デプロイ完了後に以下のコマンドで確認してください：
+   ```bash
+   az network vnet show \
+     --resource-group rg-prod-nerdio \
+     --name vnet-prod-nerdio \
+     --query "dhcpOptions.dnsServers" \
+     --output tsv
+   # → AADDS の DC IP アドレス（例: 10.10.3.4, 10.10.3.5）が表示されればOK
+   ```
 
 ### Azure Files – AADDS 認証の有効化
 
@@ -147,29 +138,6 @@ az role assignment create \
   --role "Storage File Data SMB Share Elevated Contributor" \
   --assignee-object-id <管理者のオブジェクトID> \
   --scope "$SCOPE"
-```
-
-### Azure Files – NTFS permissions
-
-Share-level permissions 設定後、ドメイン参加済みVM上から NTFS 権限を設定します：
-
-```powershell
-# ドメイン参加済みVM（snet-avd または snet-nerdio）上で実行
-$sharePath = "\\<storageAccountName>.file.core.windows.net\profiles"
-
-# ドライブをマウント（Kerberos 認証）
-net use Z: $sharePath
-
-# NTFS 権限を設定
-# AVDユーザー：フォルダの作成・自分のサブフォルダへのフルコントロール
-icacls Z:\ /grant "<ドメイン名>\<AVDユーザーグループ>:(M)"
-icacls Z:\ /grant "CREATOR OWNER:(OI)(CI)(IO)(F)"
-
-# 管理者：フルコントロール
-icacls Z:\ /grant "<ドメイン名>\Domain Admins:(F)"
-
-# ドライブの解放
-net use Z: /delete
 ```
 
 ### Nerdio Manager installation

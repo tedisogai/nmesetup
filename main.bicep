@@ -117,6 +117,31 @@ module storageModule 'modules/azure-files.bicep' = {
   }
 }
 
+// ── VNet カスタム DNS 更新 ─────────────────────────────────────
+// AADDS プロビジョニング完了後に DC の IP を VNet の DNS サーバーとして設定する
+// dependsOn により AADDS デプロイ完了後に実行されることを保証する
+module vnetDnsModule 'modules/vnet-dns.bicep' = {
+  name: 'deploy-vnet-dns'
+  scope: resourceGroup
+  params: {
+    vnetName: networkModule.outputs.vnetName
+    location: location
+    tags: tags
+    vnetAddressPrefix: vnetAddressPrefix
+    dnsServers: aadsModule.outputs.domainControllerIpAddresses
+    avdSubnetPrefix: avdSubnetPrefix
+    aadsSubnetPrefix: aadsSubnetPrefix
+    storageSubnetPrefix: storageSubnetPrefix
+    avdNsgId: networkModule.outputs.avdNsgId
+    aadsNsgId: networkModule.outputs.aadsNsgId
+    storageNsgId: networkModule.outputs.storageNsgId
+  }
+  dependsOn: [
+    aadsModule
+    networkModule
+  ]
+}
+
 // ── Outputs ───────────────────────────────────────────────────
 output resourceGroupName string = resourceGroup.name
 output nerdioResourceGroupName string = nerdioResourceGroup.name

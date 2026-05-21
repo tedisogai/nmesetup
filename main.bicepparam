@@ -8,7 +8,7 @@ using './main.bicep'
 
 // ── General ───────────────────────────────────────────────────
 param location            = 'japaneast'
-param environmentPrefix   = 'demo'
+param environmentPrefix   = '20260512'
 param projectName         = 'tisogai'
 
 // ── Networking ───────────────────────────────────────────────
@@ -18,7 +18,7 @@ param aadsSubnetPrefix    = '10.10.3.0/24'   // Entra Domain Services (dedicated
 param storageSubnetPrefix = '10.10.4.0/24'   // Azure Files private endpoint
 
 // ── Entra Domain Services ─────────────────────────────────────
-param aadsDomainName      = 'tisogai.local'  // ← Update to your domain
+param aadsDomainName      = 'tisogai05.local'  // ← Update to your domain
 param aadsSku             = 'Standard'            // Standard | Enterprise | Premium
 
 // ── Azure Files ───────────────────────────────────────────────
@@ -28,7 +28,7 @@ param storageSkuName      = 'Standard_LRS'          // Use Premium_LRS for high-
 
 // ── Tags ──────────────────────────────────────────────────────
 param tags = {
-  environment: 'demo'
+  environment: '20260512'
   project: 'tisogai'
   owner: 'tisogai'
   costCenter: 'Japan-Team'

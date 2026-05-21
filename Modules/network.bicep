@@ -255,3 +255,6 @@ output vnetName string = vnet.name
 output avdSubnetId string = snetAvd.id
 output aadsSubnetId string = snetAadds.id
 output storageSubnetId string = snetStorage.id
+output avdNsgId string = avdNsg.id
+output aadsNsgId string = aadsNsg.id
+output storageNsgId string = storageNsg.id
