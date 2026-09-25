@@ -1,6 +1,6 @@
 // ============================================================
 // main.bicepparam
-// Parameter overrides for Production deployment
+// Parameter template - 環境ごとに値をコピーしてカスタマイズしてください
 // Usage: az deployment sub create -f main.bicep -p main.bicepparam
 // ============================================================
 
@@ -8,8 +8,8 @@ using './main.bicep'
 
 // ── General ───────────────────────────────────────────────────
 param location            = 'japaneast'
-param environmentPrefix   = '20260512'
-param projectName         = 'tisogai'
+param environmentPrefix   = 'prod'                  // ← 環境ごとに変更（例: prod, dev, uat）
+param projectName         = 'nerdio'                // ← プロジェクト/テナント名に変更
 
 // ── Networking ───────────────────────────────────────────────
 param vnetAddressPrefix   = '10.10.0.0/16'
@@ -18,8 +18,12 @@ param aadsSubnetPrefix    = '10.10.3.0/24'   // Entra Domain Services (dedicated
 param storageSubnetPrefix = '10.10.4.0/24'   // Azure Files private endpoint
 
 // ── Entra Domain Services ─────────────────────────────────────
-param aadsDomainName      = 'tisogai05.local'  // ← Update to your domain
-param aadsSku             = 'Standard'            // Standard | Enterprise | Premium
+param deployEntraDs       = true                    // false にすると AADDS を作成しない
+param aadsDomainName      = 'aadds.contoso.local'   // ← 自社のドメイン名に変更（デプロイ後の変更不可）
+param aadsSku             = 'Enterprise'            // Standard | Enterprise | Premium
+
+// ── Azure Compute Gallery ─────────────────────────────────────
+param galleryName         = ''                      // 空文字の場合は自動生成 (gal_<environmentPrefix>_<projectName>)
 
 // ── Azure Files ───────────────────────────────────────────────
 param fileShareName       = 'profiles'
@@ -28,9 +32,9 @@ param storageSkuName      = 'Standard_LRS'          // Use Premium_LRS for high-
 
 // ── Tags ──────────────────────────────────────────────────────
 param tags = {
-  environment: '20260512'
-  project: 'tisogai'
-  owner: 'tisogai'
-  costCenter: 'Japan-Team'
+  environment: 'prod'                               // ← environmentPrefix と合わせる
+  project: 'nerdio'                                  // ← projectName と合わせる
+  owner: 'changeme'
+  costCenter: 'changeme'
   managedBy: 'Bicep'
 }

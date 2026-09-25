@@ -30,12 +30,18 @@ param aadsSubnetPrefix string = '10.10.3.0/24'
 @description('Subnet for Azure Files / private endpoints')
 param storageSubnetPrefix string = '10.10.4.0/24'
 
+@description('Deploy Microsoft Entra Domain Services (managed domain). Set to false to skip AADDS entirely.')
+param deployEntraDs bool = true
+
 @description('DNS domain name for Entra Domain Services')
 param aadsDomainName string = 'aadds.contoso.local'
 
 @description('SKU for the Entra Domain Services managed domain (Standard or Enterprise or Premium)')
 @allowed(['Standard', 'Enterprise', 'Premium'])
 param aadsSku string = 'Enterprise'
+
+@description('Azure Compute Gallery name (letters, numbers, periods, underscores only). Leave empty to auto-generate from environmentPrefix/projectName.')
+param galleryName string = ''
 
 @description('Azure Files SMB share name')
 param fileShareName string = 'profiles'
@@ -56,8 +62,9 @@ param tags object = {
 
 // ── Naming helpers ────────────────────────────────────────────
 var suffix = '${environmentPrefix}-${projectName}'
-var rgName = 'rg-${suffix}'                        // 共有インフラ用 RG（VNet / AADDS / Storage）
+var rgName = 'rg-${suffix}'                        // 共有インフラ用 RG（VNet / AADDS / Storage / Compute Gallery）
 var nerdioRgName = 'rg-${suffix}-app'              // Nerdio Manager インストール用 RG
+var galleryNameResolved = empty(galleryName) ? 'gal_${replace(suffix, '-', '_')}' : galleryName
 
 // ── Resource Groups ───────────────────────────────────────────
 // 共有インフラ用リソースグループ
@@ -89,12 +96,11 @@ module networkModule 'modules/network.bicep' = {
   }
 }
 
-module aadsModule 'modules/entra-ds.bicep' = {
+module aadsModule 'modules/entra-ds.bicep' = if (deployEntraDs) {
   name: 'deploy-entra-ds'
   scope: resourceGroup
   params: {
     location: location
-    suffix: suffix
     tags: tags
     domainName: aadsDomainName
     sku: aadsSku
@@ -120,7 +126,8 @@ module storageModule 'modules/azure-files.bicep' = {
 // ── VNet カスタム DNS 更新 ─────────────────────────────────────
 // AADDS プロビジョニング完了後に DC の IP を VNet の DNS サーバーとして設定する
 // dependsOn により AADDS デプロイ完了後に実行されることを保証する
-module vnetDnsModule 'modules/vnet-dns.bicep' = {
+// deployEntraDs = false の場合は AADDS 自体が存在しないためスキップする
+module vnetDnsModule 'modules/vnet-dns.bicep' = if (deployEntraDs) {
   name: 'deploy-vnet-dns'
   scope: resourceGroup
   params: {
@@ -128,7 +135,7 @@ module vnetDnsModule 'modules/vnet-dns.bicep' = {
     location: location
     tags: tags
     vnetAddressPrefix: vnetAddressPrefix
-    dnsServers: aadsModule.outputs.domainControllerIpAddresses
+    dnsServers: aadsModule!.outputs.domainControllerIpAddresses
     avdSubnetPrefix: avdSubnetPrefix
     aadsSubnetPrefix: aadsSubnetPrefix
     storageSubnetPrefix: storageSubnetPrefix
@@ -136,10 +143,18 @@ module vnetDnsModule 'modules/vnet-dns.bicep' = {
     aadsNsgId: networkModule.outputs.aadsNsgId
     storageNsgId: networkModule.outputs.storageNsgId
   }
-  dependsOn: [
-    aadsModule
-    networkModule
-  ]
+}
+
+// ── Azure Compute Gallery ─────────────────────────────────────
+// Nerdio Manager が管理するゴールデンイメージ用の共有ギャラリー
+module galleryModule 'modules/compute-gallery.bicep' = {
+  name: 'deploy-compute-gallery'
+  scope: resourceGroup
+  params: {
+    location: location
+    tags: tags
+    galleryName: galleryNameResolved
+  }
 }
 
 // ── Outputs ───────────────────────────────────────────────────
@@ -151,4 +166,7 @@ output aadsSubnetId string = networkModule.outputs.aadsSubnetId
 output storageSubnetId string = networkModule.outputs.storageSubnetId
 output storageAccountName string = storageModule.outputs.storageAccountName
 output fileShareName string = storageModule.outputs.fileShareName
-output aadsDomainName string = aadsModule.outputs.domainName
+output deployEntraDs bool = deployEntraDs
+output aadsDomainName string = deployEntraDs ? aadsModule!.outputs.domainName : ''
+output galleryId string = galleryModule.outputs.galleryId
+output galleryName string = galleryModule.outputs.galleryName

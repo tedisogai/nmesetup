@@ -8,9 +8,12 @@ Nerdio Manager for Enterprise のインストールに必要な、すべての�
 |---|---|
 | `main.bicep` | リソースグループ × 2（共有インフラ用・Nerdio Manager アプリ用） |
 | `modules/network.bicep` | VNet、サブネット × 3、NSG × 3 |
-| `modules/entra-ds.bicep` | Entra Domain Services マネージドドメイン |
-| `modules/vnet-dns.bicep` | VNet カスタム DNS 更新（AADDS DC IP を自動設定） |
+| `modules/entra-ds.bicep` | Entra Domain Services マネージドドメイン（`deployEntraDs = true` の場合のみ） |
+| `modules/vnet-dns.bicep` | VNet カスタム DNS 更新（AADDS DC IP を自動設定。`deployEntraDs = true` の場合のみ） |
 | `modules/azure-files.bicep` | ストレージアカウント、ファイルサービス、SMB 共有、プライベートエンドポイント、プライベート DNS ゾーン |
+| `modules/compute-gallery.bicep` | Azure Compute Gallery（共有インフラ用 RG に作成） |
+
+> **注意：** `deployEntraDs = false` を設定すると Entra Domain Services の作成をスキップできます（VNet・サブネット構成は変わりません）。FSLogix プロファイルの認証に Entra DS を使わない場合などに利用してください。
 
 ## ネットワーク構成
 
@@ -39,8 +42,10 @@ Nerdio Manager for Enterprise のインストールに必要な、すべての�
 
 `main.bicepparam` を開き、以下の値を設定します：
 - `aadsDomainName` – AADDS の DNS ドメイン名（デプロイ後の変更不可）
+- `deployEntraDs` – Entra Domain Services を作成するかどうか（`false` でスキップ）
 - `location` – デプロイ先の Azure リージョン
 - `environmentPrefix`、`projectName` – すべてのリソース名に使用されるプレフィックス
+- `galleryName` – Azure Compute Gallery 名（空文字なら `gal_<environmentPrefix>_<projectName>` を自動生成）
 
 ### 2. デプロイの実行
 

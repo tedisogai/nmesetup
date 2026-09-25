@@ -8,7 +8,6 @@ targetScope = 'resourceGroup'
 
 // ── Parameters ───────────────────────────────────────────────
 param location string
-param suffix string
 param tags object
 
 @description('DNS domain name for the managed domain (e.g. aadds.contoso.local)')
